@@ -57,16 +57,26 @@ class PatchSlack:
 
         # JSON for the message to Slack
         # "attachments" will be replaced by our work
-        self.template = """
-        {
-        "username": "PatchBot",
-        "icon_emoji": ":patchbot:",
-        "channel": "#patchbotlogging",
-        "text": "Patch Manager",
-        "attachments": [
-		    ]
+ 
+        # self.template = """
+        # {
+        # "username": "PatchBot",
+        # "icon_emoji": ":patchbot:",
+        # "channel": "#patchbotlogging",
+        # "text": "Patch Manager",
+        # "attachments": [
+		#     ]
+        # }
+        # """
+
+        self.template = {
+            "username": "PatchBot",
+            "icon_emoji": ":patchbot:",
+            "channel": "#patchbotlogging",
+            "text": "Patch Manager",
+            "attachments": []
         }
-        """
+
 
         # JSON for a  of a message
         # we will have a section for each package uploaded
@@ -99,23 +109,37 @@ class PatchSlack:
         """
 
         # JSON template for the error message card.
-        self.none_template = """
-        {
-        "username": "PatchBot",
-        "icon_emoji": ":patchbot:",
-        "channel": "#patchbotlogging",
-        "text": "**Empty run**",
-        "attachments": [
-		    ]
+        # self.none_template = """
+        # {
+        # "username": "PatchBot",
+        # "icon_emoji": ":patchbot:",
+        # "channel": "#patchbotlogging",
+        # "text": "**Empty run**",
+        # "attachments": [
+		#     ]
+        # }
+        # """
+
+        self.none_template = {
+            "username": "PatchBot",
+            "icon_emoji": ":patchbot:",
+            "channel": "#patchbotlogging",
+            "text": "**Empty run**",
+            "attachments": []
         }
-        """
+
+
 
     def PatchSlack(self):
         """Do the patches changed!"""
-        self.logger.info("Starting Run")
+
+        self.logger.info("Starting Run for PatchSlack() function")
+
         attachments = []
+
         empty = False
         jsr = "patch_manager_summary_result"
+
         try:
             fp = open(self.plist, "rb")
             pl = plistlib.load(fp)
@@ -123,6 +147,7 @@ class PatchSlack:
             self.logger.error("Failed to load %s", self.plist)
             sys.exit()
         item = 0
+
         if jsr not in pl["summary_results"]:
             self.logger.debug("No Patch results")
             empty = True
@@ -136,30 +161,57 @@ class PatchSlack:
                 attachments[item]["patch_id"] = "**%s**" % name
                 attachments[item]["text"] = version
                 item = item + 1
-            j = json.loads(self.template)
+    
+            ## Switched to storing json in the variable, rather than using
+            ## json.loads and json.dumps.
+
+            # j = json.loads(self.template)
+
+            j = self.template
             j["attachments"] = attachments
-            d = json.dumps(j)
+
+            # d = json.dumps(j)
+            d = j
             headers = {'Content-Type': "application/json"}
-            requests.post(self.url, data=d, headers=headers)
+
+            ## Instead of using "data=" we're going to use "json=" because
+            ## requests has a "json" option to send json data through POST
+
+            # requests.post(self.url, data=d, headers=headers)
+            requests.post(self.url, json=d, headers=headers)
+
         # do the error messages
         fails = pl["failures"]
         if len(fails) == 0:  # no failures
             if empty:
                 headers = {'Content-Type': "application/json"}
-                requests.post(self.url, data=self.none_template, headers=headers)
+
+                ## Instead of using "data=" we're going to use "json=" because
+                ## requests has a "json" option to send json data through POST
+
+                # requests.post(self.url, data=self.none_template, headers=headers)
+
+                requests.post(self.url, json=self.none_template, headers=headers)
             sys.exit()
+
         attachments = []
+
         item = 0
         for f in fails:
             attachments.append(json.loads(self.err_section))
             attachments[item]["title"] = "**%s**" % f["recipe"]
             attachments[item]["text"] = f["message"].replace("\n", " ")
             item = item + 1
-        j = json.loads(self.err_template)
+
+        # j = json.loads(self.err_template)
+        j = self.err_template
+
         j["attachments"] = attachments
-        d = json.dumps(j)
+        # d = json.dumps(j)
+        d = j
         headers = {'Content-Type': "application/json"}
-        requests.post(self.url, data=d, headers=headers)
+        # requests.post(self.url, data=d, headers=headers)
+        requests.post(self.url, json=d, headers=headers)
 
 
 if __name__ == "__main__":
